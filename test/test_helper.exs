@@ -37,8 +37,8 @@ _   = Ecto.Storage.down(TestRepo)
 :ok = Ecto.Storage.up(TestRepo)
 
 {:ok, pid} = TestRepo.start_link
-:ok = TestRepo.stop(pid, :infinity)
-{:ok, _pid} = TestRepo.start_link
+# :ok = TestRepo.stop(pid, :infinity)
+# {:ok, _pid} = TestRepo.start_link
 
 # We capture_io, because of warnings on references
 ExUnit.CaptureIO.capture_io fn ->
