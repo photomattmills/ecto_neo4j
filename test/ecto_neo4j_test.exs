@@ -3,11 +3,11 @@ defmodule Ecto.Neo4jTest do
 
   use Ecto.Integration.Case
 
-  alias Ecto.Integration.TestRepo
-  alias Ecto.Integration.Post
-  alias Ecto.Integration.Tag
-  alias Ecto.Integration.Order
-  alias Ecto.Integration.Item
+  # alias Ecto.Integration.TestRepo
+  # alias Ecto.Integration.Post
+  # alias Ecto.Integration.Tag
+  # alias Ecto.Integration.Order
+  # alias Ecto.Integration.Item
   
   doctest Ecto.Neo4j
 

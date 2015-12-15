@@ -28,7 +28,7 @@ defmodule Ecto.Integration.Case do
   end
 
   setup do
-    Ecto.Neo4j.truncate(TestRepo)
+    # Ecto.Neo4j.truncate(TestRepo)
     :ok
   end
 end
