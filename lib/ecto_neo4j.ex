@@ -45,6 +45,10 @@ defmodule Ecto.Neo4j do
   end
 
   def dump(_something, _something_else) do
-    {:ok, }
+    {:ok, ""}
+  end
+
+  def insert(repo, schema_meta, fields, autogenerate_id, returning, options) do
+    {:ok, []}
   end
 end
