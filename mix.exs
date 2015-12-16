@@ -1,4 +1,4 @@
-defmodule EctoNeo4j.Mixfile do
+defmodule Ecto.Neo4j.Mixfile do
   use Mix.Project
 
   def project do
