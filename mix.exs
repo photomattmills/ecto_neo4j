@@ -14,7 +14,7 @@ defmodule Ecto.Neo4j.Mixfile do
   #
   # Type "mix help compile.app" for more information
   def application do
-    [applications: [:logger]]
+    [applications: [:logger, :ecto, :neo4j_sips]]
   end
 
   # Dependencies can be Hex packages:

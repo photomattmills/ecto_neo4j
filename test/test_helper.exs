@@ -42,5 +42,5 @@ _   = Ecto.Storage.down(TestRepo)
 
 # We capture_io, because of warnings on references
 ExUnit.CaptureIO.capture_io fn ->
-  :ok = Ecto.Migrator.up(TestRepo, 0, Ecto.Integration.Migration, log: false)
+  # :ok = Ecto.Migrator.up(TestRepo, 0, Ecto.Integration.Migration, log: false)
 end
