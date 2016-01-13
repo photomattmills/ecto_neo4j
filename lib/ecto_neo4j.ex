@@ -1,6 +1,7 @@
 defmodule Ecto.Neo4j do
   alias Neo4j.Sips.Connection
   alias Neo4j.Sips, as: Neo4j
+  use Timex
   use GenServer
   require IEx
 
@@ -16,7 +17,12 @@ defmodule Ecto.Neo4j do
   end
 
   def storage_down(_something) do
+    Neo4j.query(Neo4j.conn, "MATCH (n) DELETE n")
+    :ok
+  end
 
+  def embed_id(_) do
+    Ecto.UUID.generate
   end
 
   def storage_up(_something) do
@@ -27,10 +33,6 @@ defmodule Ecto.Neo4j do
     {:ok, _} = Application.ensure_all_started(:ecto_neo4j)
     Ecto.Pools.Poolboy.start_link(Connection, opts)
   end
-  #
-  # def conn do
-  #   Neo4j.Sips.conn
-  # end
 
   def stop(pid, number) do
     Ecto.Adapters.Connection.shutdown(pid, number)
@@ -44,35 +46,77 @@ defmodule Ecto.Neo4j do
     {:nocache, {arg0, query}}
   end
 
-  def execute(repo, meta, query, params, preprocess, options) do
-    # IO.inspect [repo, meta, query, params, preprocess, options]
+  def execute(_repo, _meta, query, _params, _preprocess, _options) do
     cypher = build_cypher(query)
-    IO.inspect cypher
     {:ok, return} = Neo4j.query(Neo4j.conn, cypher)
-    {Enum.count(return), return}
+    sorted_return = return |> Enum.map(fn column -> sort_column(column, query) end)
+    {Enum.count(return), sorted_return}
   end
 
-  def extract_column expr do
-    {{_,_,[head|columns]},_,_} = expr
-    hd columns
+  def sort_column(col, query) do
+    columns = result_columns(query)
+    if hd(columns) do
+      columns |> Enum.map(fn {name, type} -> coerce(type, col[Atom.to_string(name)]) end)
+    else
+      [nil]
+    end
   end
 
+  def coerce(type, value) do
+    {:ok, return_val} = load(type, value)
+    return_val
+  end
 
-  def build_cypher({type, query}) do
+  def extract_column(expr) when is_tuple(expr) do
+    {{_,_,[_head|columns]},_type,_} = expr
+    hd(columns)
+  end
+
+  def result_columns({_type, query}) do
+    query.select.fields |> Enum.map(fn expr -> extract_column_with_type(expr) end)
+  end
+
+  def extract_column_with_type(expr) when expr != nil do
+    {{_,_,[_head|columns]},type,_} = expr
+    {hd(columns), type[:ecto_type]}
+  end
+
+  def extract_column_with_type(expr), do: expr
+
+  def extract_column(expr), do: expr
+
+
+  def build_cypher(query) do
+    {type, query_obj} = query
     case type do
       :all ->
-        columns = query.select.fields |> Enum.map(fn expr -> extract_column(expr) end)
-        columns_string = columns |> Enum.map(fn column -> "m.#{column}" end)
-        {from, _} = query.from
+        columns_string = columns(query) |> Enum.uniq |> Enum.map(fn column -> "m.#{column} as #{column}" end)
+        {from, _} = query_obj.from
         "MATCH (m:#{from}) RETURN #{columns_string |> Enum.join(", ")}"
     end
+  end
+
+  def columns({_type, query}) do
+    query.select.fields |> Enum.map(fn expr -> extract_column(expr) end)
   end
 
   def supports_ddl_transaction? do
     false
   end
 
-  # def load(type, value), do: Ecto.Type.load(type, value, &load/2)
+  def load(Ecto.DateTime, value) do
+    {:ok, date} = value
+    |> DateFormat.parse("%Y-%m-%d %H:%M:%S", :strftime)
+    date |> DateConvert.to_erlang_datetime
+    |> Ecto.DateTime.cast
+  end
+
+  def load(:boolean, "true"), do: {:ok, true}
+  def load(:boolean, "false"), do: {:ok, false}
+
+  def load(:integer, value), do: {:ok, String.to_integer(value)}
+  def load(:id, value), do: {:ok, String.to_integer(value)}
+  def load(:float, value), do: {:ok, String.to_float(value)}
   def load(type, value) do
     {:ok, value}
   end
@@ -82,8 +126,7 @@ defmodule Ecto.Neo4j do
   # this is definitely wrong, will need work to figure our supported types
   def dump(_something, term), do: {:ok, term}
 
-  def insert(repo, schema_meta, fields, autogenerate_id, returning, options) do
-    # IO.puts "insert insert insert insert insert insert insert insert insert insert insert insert insert insert insert insert insert insert insert insert insert insert insert insert insert insert "
+  def insert(_repo, schema_meta, fields, _autogenerate_id, _returning, _options) do
     {_, table} = schema_meta.source
     cypher = "CREATE (n:#{table} {#{fields_parser(fields)}}) RETURN n"
     {:ok, [result] } = Neo4j.query(Neo4j.conn, cypher)
@@ -95,14 +138,14 @@ defmodule Ecto.Neo4j do
 
   def return_fields_parser fields do
     fields
-    |> Enum.filter(fn {k,v} -> v && v != "" end)
-    |> Enum.map(fn {k, v} -> "#{Atom.to_string(k)}" end)
+    |> Enum.filter(fn {_k,v} -> v && v != "" end)
+    |> Enum.map(fn {k, _v} -> "#{Atom.to_string(k)}" end)
     |> Enum.join ", "
   end
 
   def fields_parser fields do
     fields
-    |> Enum.filter(fn {k,v} -> v && v != "" end)
+    |> Enum.filter(fn {_k,v} -> v && v != "" end)
     |> Enum.map(fn {k, v} -> "#{Atom.to_string(k)} : '#{v}'" end)
     |> Enum.join ", "
   end

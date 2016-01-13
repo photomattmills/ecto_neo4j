@@ -4,7 +4,7 @@ defmodule Ecto.Neo4j.Mixfile do
   def project do
     [app: :ecto_neo4j,
      version: "0.0.1",
-     elixir: "~> 1.1",
+     elixir: "~> 1.1.0-dev",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
      deps: deps]
@@ -14,7 +14,7 @@ defmodule Ecto.Neo4j.Mixfile do
   #
   # Type "mix help compile.app" for more information
   def application do
-    [applications: [:logger, :ecto, :neo4j_sips]]
+    [applications: [:logger, :ecto, :neo4j_sips, :tzdata]]
   end
 
   # Dependencies can be Hex packages:
@@ -31,6 +31,7 @@ defmodule Ecto.Neo4j.Mixfile do
     [
       {:neo4j_sips, "~> 0.1.12"},
       {:ecto, "~> 1.0"},
+      {:timex, "~> 1.0.0"},
       {:dialyze, "~> 0.2.0", only: :dev},
       {:excoveralls, "~> 0.3.11", only: :test},
       {:inch_ex, only: :docs},
