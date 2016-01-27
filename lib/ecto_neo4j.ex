@@ -143,6 +143,10 @@ defmodule Ecto.Neo4j do
     |> Enum.join ", "
   end
 
+  def fields_parser [item: %Ecto.Changeset{changes: fields}] do
+    fields_parser fields
+  end
+
   def fields_parser fields do
     fields
     |> Enum.filter(fn {_k,v} -> v && v != "" end)
