@@ -1,4 +1,5 @@
 defmodule Ecto.Neo4j do
+  @moduledoc "Provides an Ecto integration to Neo4J."
   alias Neo4j.Sips.Connection
   alias Neo4j.Sips, as: Neo4j
   use Timex
