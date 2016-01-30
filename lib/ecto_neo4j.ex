@@ -57,7 +57,8 @@ defmodule Ecto.Neo4j do
   def sort_column(col, query) do
     cols = result_columns(query)
     if hd(cols) do
-      cols |> Enum.map(fn {name, type} -> coerce(type, col[Atom.to_string(name)]) end)
+      coercer = fn({name, type}) -> coerce(type, col[Atom.to_string(name)]) end
+      cols |> Enum.map(coercer)
     else
       [nil]
     end
@@ -88,8 +89,9 @@ defmodule Ecto.Neo4j do
     {type, query_obj} = query
     case type do
       :all ->
-        columns_string = query |> columns |> Enum.uniq |> Enum.map(fn column -> "m.#{column} as #{column}" end)
-        {from, _} = query_obj.from
+        formatter      = fn column -> "m.#{column} as #{column}" end
+        columns_string = query |> columns |> Enum.uniq |> Enum.map(formatter)
+        {from, _}      = query_obj.from
         "MATCH (m:#{from}) RETURN #{columns_string |> Enum.join(", ")}"
     end
   end
@@ -137,7 +139,7 @@ defmodule Ecto.Neo4j do
   def return_fields_parser fields do
     fields
     |> Enum.filter(fn {_k,v} -> v && v != "" end)
-    |> Enum.map(fn {k, _v} -> "#{Atom.to_string(k)}" end)
+    |> Enum.map(fn {k, _v} -> Atom.to_string(k) end)
     |> Enum.join(", ")
   end
 
