@@ -117,7 +117,7 @@ defmodule Ecto.Neo4j do
   def load(:integer, value), do: {:ok, String.to_integer(value)}
   def load(:id, value), do: {:ok, String.to_integer(value)}
   def load(:float, value), do: {:ok, String.to_float(value)}
-  def load(type, value) do
+  def load(_type, value) do
     {:ok, value}
   end
 
