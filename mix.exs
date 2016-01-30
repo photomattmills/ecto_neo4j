@@ -36,7 +36,9 @@ defmodule Ecto.Neo4j.Mixfile do
       {:excoveralls, "~> 0.3.11", only: :test},
       {:inch_ex, only: :docs},
       {:earmark, "~> 0.1", only: :docs},
-      {:ex_doc, "~> 0.8", only: :docs}
+      {:ex_doc, "~> 0.8", only: :docs},
+      {:credo, "~> 0.2", only: [:dev, :test]},
+      {:dogma, "~> 0.0", only: :dev}
     ]
   end
 
