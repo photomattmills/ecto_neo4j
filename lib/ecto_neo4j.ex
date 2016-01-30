@@ -137,7 +137,7 @@ defmodule Ecto.Neo4j do
     fields
     |> Enum.filter(fn {_k,v} -> v && v != "" end)
     |> Enum.map(fn {k, _v} -> "#{Atom.to_string(k)}" end)
-    |> Enum.join ", "
+    |> Enum.join(", ")
   end
 
   def fields_parser [item: %Ecto.Changeset{changes: fields}] do
