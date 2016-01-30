@@ -87,7 +87,7 @@ defmodule Ecto.Neo4j do
     {type, query_obj} = query
     case type do
       :all ->
-        columns_string = columns(query) |> Enum.uniq |> Enum.map(fn column -> "m.#{column} as #{column}" end)
+        columns_string = query |> columns |> Enum.uniq |> Enum.map(fn column -> "m.#{column} as #{column}" end)
         {from, _} = query_obj.from
         "MATCH (m:#{from}) RETURN #{columns_string |> Enum.join(", ")}"
     end
