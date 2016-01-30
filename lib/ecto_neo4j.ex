@@ -148,7 +148,7 @@ defmodule Ecto.Neo4j do
     fields
     |> Enum.filter(fn {_k,v} -> v && v != "" end)
     |> Enum.map(fn {k, v} -> "#{Atom.to_string(k)} : '#{v}'" end)
-    |> Enum.join ", "
+    |> Enum.join(", ")
   end
 
   def config, do: Application.get_env(:neo4j_sips, Neo4j)
