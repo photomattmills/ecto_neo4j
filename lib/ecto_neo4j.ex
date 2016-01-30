@@ -54,9 +54,9 @@ defmodule Ecto.Neo4j do
   end
 
   def sort_column(col, query) do
-    columns = result_columns(query)
-    if hd(columns) do
-      columns |> Enum.map(fn {name, type} -> coerce(type, col[Atom.to_string(name)]) end)
+    cols = result_columns(query)
+    if hd(cols) do
+      cols |> Enum.map(fn {name, type} -> coerce(type, col[Atom.to_string(name)]) end)
     else
       [nil]
     end
