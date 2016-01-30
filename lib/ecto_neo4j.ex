@@ -71,6 +71,7 @@ defmodule Ecto.Neo4j do
     {{_,_,[_head|columns]},_type,_} = expr
     hd(columns)
   end
+  def extract_column(expr), do: expr
 
   def result_columns({_type, query}) do
     query.select.fields |> Enum.map(fn expr -> extract_column_with_type(expr) end)
@@ -80,11 +81,7 @@ defmodule Ecto.Neo4j do
     {{_,_,[_head|columns]},type,_} = expr
     {hd(columns), type[:ecto_type]}
   end
-
   def extract_column_with_type(expr), do: expr
-
-  def extract_column(expr), do: expr
-
 
   def build_cypher(query) do
     {type, query_obj} = query
