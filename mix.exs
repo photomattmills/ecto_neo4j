@@ -4,7 +4,7 @@ defmodule Ecto.Neo4j.Mixfile do
   def project do
     [app: :ecto_neo4j,
      version: "0.0.1",
-     elixir: "~> 1.1.0-dev",
+     elixir: ">= 1.1.0-dev",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
      deps: deps]
