@@ -1,4 +1,5 @@
-ExUnit.start exclude: [:uses_usec, :id_type, :read_after_writes, :sql_fragments, :decimal_type, :invalid_prefix, :foreign_key_constraint]
+ExUnit.start exclude: [:uses_usec, :id_type, :read_after_writes,
+  :sql_fragments, :decimal_type, :invalid_prefix, :foreign_key_constraint]
 
 Application.put_env(:ecto, :primary_key_type, :binary_id)
 

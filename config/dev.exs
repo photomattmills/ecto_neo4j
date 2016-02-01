@@ -13,5 +13,5 @@ config :dogma,
   # Override an existing rule configuration
   override: %{
     FunctionArity => [ max: 6 ],
-    LineLength    => [ max_length: 85 ],
+    LineLength    => [ max_length: 100 ],
   }
