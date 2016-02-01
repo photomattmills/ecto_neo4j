@@ -4,7 +4,7 @@ defmodule Ecto.Neo4j.Mixfile do
   def project do
     [app: :ecto_neo4j,
      version: "0.0.1",
-     elixir: "~> 1.1.0-dev",
+     elixir: ">= 1.1.0-dev",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
      deps: deps]
@@ -36,7 +36,9 @@ defmodule Ecto.Neo4j.Mixfile do
       {:excoveralls, "~> 0.3.11", only: :test},
       {:inch_ex, only: :docs},
       {:earmark, "~> 0.1", only: :docs},
-      {:ex_doc, "~> 0.8", only: :docs}
+      {:ex_doc, "~> 0.8", only: :docs},
+      {:credo, "~> 0.2", only: [:dev, :test]},
+      {:dogma, "~> 0.0", only: :dev}
     ]
   end
 
