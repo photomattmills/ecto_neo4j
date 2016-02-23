@@ -19,11 +19,9 @@ If [available in Hex](https://hex.pm/docs/publish), the package can be installed
         end
 
 ## TODO
-  * `start_link/2` needs to actually start workers with poolboy (or similar)
-  * Make tests pass (using wrapper? maybe)
-  * Cypher Query Builder
-    * each function in Cypher (find, where, etc.) has a corresponding method (limited to start)
-    * methods take a struct of previous query elements
+  * Make tests pass -- In Progress!
+    * Cypher Query Builder -- In Progress!
+    * Associations
 
 ## Contributing
 
