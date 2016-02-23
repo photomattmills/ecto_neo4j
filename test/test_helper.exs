@@ -5,7 +5,6 @@ Application.put_env(:ecto, :primary_key_type, :binary_id)
 
 Code.require_file "../deps/ecto/integration_test/support/repo.exs", __DIR__
 Code.require_file "../deps/ecto/integration_test/support/models.exs", __DIR__
-Code.require_file "../deps/ecto/integration_test/support/migration.exs", __DIR__
 
 # Basic test repo
 alias Ecto.Integration.TestRepo
@@ -29,7 +28,7 @@ defmodule Ecto.Integration.Case do
   end
 
   setup do
-    # Ecto.Neo4j.truncate(TestRepo)
+    Ecto.Neo4j.storage_down(TestRepo)
     :ok
   end
 end
