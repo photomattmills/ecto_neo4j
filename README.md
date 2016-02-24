@@ -21,7 +21,7 @@ If [available in Hex](https://hex.pm/docs/publish), the package can be installed
 ## TODO
   * Make tests pass -- In Progress!
     * Cypher Query Builder -- In Progress!
-    * Associations
+    * Associations -- in planning
 
 ## Contributing
 

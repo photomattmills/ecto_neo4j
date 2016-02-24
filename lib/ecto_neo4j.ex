@@ -48,13 +48,25 @@ defmodule Ecto.Neo4j do
   end
 
   def execute(repo, meta, query, params, preprocess, options) do
-    IEx.pry
-    IO.inspect params
     cypher = build_cypher(query, params)
     {:ok, return} = Neo4j.query(Neo4j.conn, cypher)
-    sorted_return = return |> Enum.map(fn column -> sort_column(column, query) end)
-    {Enum.count(return), sorted_return}
+    IO.inspect(return)
+    {return_count(return), sorted_return(return, query)}
   end
+
+  def return_count([%{"count" => n}]), do: n
+
+  def return_count(return) do
+    IO.puts "***************************** length counter ************************************* "
+    Enum.count(return)
+  end
+
+  def sorted_return(_col, {_, %Ecto.Query{select: nil}}), do: nil
+
+  def sorted_return(return, query) do
+    return |> Enum.map(fn column -> sort_column(column, query) end)
+  end
+
 
   def sort_column(col, query) do
     cols = result_columns(query)
@@ -109,14 +121,20 @@ defmodule Ecto.Neo4j do
   def build_cypher({:update_all, query_obj}, params) do
     str_wheres = where_parse(query_obj.wheres)
     str_set = set_parse(query_obj, params)
-    "MATCH n:#{query_obj.from} #{str_wheres} #{str_set}"
+    "MATCH (n:#{from_string(query_obj.from)}) #{str_wheres} #{str_set} RETURN count(*) as count"
   end
 
   def build_cypher({:delete_all, query_obj}, params) do
-    "MATCH n:#{query_obj.from} DETACH DELETE n"
+    "MATCH n:#{from_string(query_obj.from)} DETACH DELETE n"
   end
 
-  def build_cypher({type, _query} _params) do
+  def from_string({x, _}) do
+    x
+  end
+
+  def from_string(x), do: x
+
+  def build_cypher({type, _query}, _params) do
     IO.puts "***********************************************************************************************************"
     IO.puts "IMPLEMENT #{type} CYPHER BUILDER"
   end
@@ -137,17 +155,23 @@ defmodule Ecto.Neo4j do
   end
   # {:==, [], [{{:., [], [{:&, [], [0]}, :title]}, [ecto_type: :string], []}, "2"]}
   def criterium_string({:==, [], [{{:., [], [{:&, [], [0]}, column_name]}, [ecto_type: :string], []}, match]}) do
-    "#{column_name} = #{match}"
+    "n.#{column_name} = '#{match}'"
   end
 
   def set_parse(%Ecto.Query{updates: updates}, params) do
     update_items = updates
-     |> Enum.map(fn update -> update_string(update, params) end)
+     |> Enum.map(fn update -> update_strings(update, params) end)
      "SET #{update_items |> Enum.join(", ")}"
   end
 
-  def update_string(update, params) do
-    
+  def update_strings(%Ecto.Query.QueryExpr{expr: [set: fields]}, params) do
+    # IEx.pry
+    fields |> Enum.map(fn({k,v}) -> update_string(List.to_tuple(params), k, v) end)
+  end
+
+  def update_string(params, field_name, index) do
+    item_index = List.last(elem(index,2))
+    "n.#{field_name} = '#{elem(params, item_index)}'"
   end
 
   def columns(query) do
