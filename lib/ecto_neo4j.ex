@@ -50,14 +50,14 @@ defmodule Ecto.Neo4j do
   def execute(repo, meta, query, params, preprocess, options) do
     cypher = build_cypher(query, params)
     {:ok, return} = Neo4j.query(Neo4j.conn, cypher)
-    IO.inspect(return)
-    {return_count(return), sorted_return(return, query)}
+    IO.puts "************************* result from execute ***************************"
+    IO.inspect {return_count(return), sorted_return(return, query)}
+    {return_count(return), [sorted_return(return, query)]}
   end
 
   def return_count([%{"count" => n}]), do: n
 
   def return_count(return) do
-    IO.puts "***************************** length counter ************************************* "
     Enum.count(return)
   end
 
@@ -67,11 +67,14 @@ defmodule Ecto.Neo4j do
     return |> Enum.map(fn column -> sort_column(column, query) end)
   end
 
+  def sort_column(%{"n" => node}, query) do
+    sort_column(node, query)
+  end
 
-  def sort_column(col, query) do
+  def sort_column(node, query) do
     cols = result_columns(query)
     if hd(cols) do
-      coercer = fn({name, type}) -> coerce(type, col[Atom.to_string(name)]) end
+      coercer = fn({name, type}) -> coerce(type, node[Atom.to_string(name)]) end
       cols |> Enum.map(coercer)
     else
       [nil]
@@ -87,7 +90,14 @@ defmodule Ecto.Neo4j do
     {{_,_,[_head|columns]},_type,_} = expr
     hd(columns)
   end
+
   def extract_column(expr), do: expr
+
+  # when select isn't empty, but doesn't specify result columns, we want all of them by default. Don't look at me,
+  # I didn't specify this default
+  def result_columns({_type, query = %Ecto.Query{select: %Ecto.Query.SelectExpr{fields: [{:&, [], [0]}]}, sources: {{_node_type_name, source}}} }) do
+    source.__schema__(:types)
+  end
 
   def result_columns({_type, query}) do
     query.select.fields |> Enum.map(fn expr -> extract_column_with_type(expr) end)
@@ -97,26 +107,14 @@ defmodule Ecto.Neo4j do
     {{_,_,[_head|columns]},type,_} = expr
     {hd(columns), type[:ecto_type]}
   end
+
   def extract_column_with_type(expr), do: expr
 
-
-  def build_cypher({:all, query_obj}, _params) do
-    formatter      = fn column -> "n.#{column} as #{column}" end
-    columns_string = query_obj |> columns |> Enum.uniq |> Enum.map(formatter)
-    {from, _}      = query_obj.from
-    "MATCH (n:#{from}) RETURN #{columns_string |> Enum.join(", ")}"
+  def build_cypher({:all, query_obj}, params) do
+    str_wheres = wheres_parse(query_obj.wheres, params)
+    IO.puts "MATCH (n:#{from_string(query_obj.from)}) #{str_wheres} RETURN n"
+    "MATCH (n:#{from_string(query_obj.from)}) #{str_wheres} RETURN n"
   end
-
-#  query_obj wheres look like this:
-#  w = query_obj.wheres
-#  [%Ecto.Query.QueryExpr{expr: {:or, [],
-#    [{:==, [],
-#      [{{:., [], [{:&, [], [0]}, :title]}, [ecto_type: :string], []}, "1"]},
-#     {:==, [],
-#      [{{:., [], [{:&, [], [0]}, :title]}, [ecto_type: :string], []}, "2"]}]},
-#   file: "/Users/mmills/projects/ecto_neo4j/deps/ecto/integration_test/cases/repo.exs",
-#   line: 431, params: nil}]
-
 
   def build_cypher({:update_all, query_obj}, params) do
     str_wheres = where_parse(query_obj.wheres)
@@ -139,20 +137,42 @@ defmodule Ecto.Neo4j do
     IO.puts "IMPLEMENT #{type} CYPHER BUILDER"
   end
 
+  # where parsing for update queries
+  def wheres_parse(wheres) do
+    all = wheres
+      |> Enum.map(fn w -> where_parse(w) end)
+      |> Enum.join(" AND ")
+    "WHERE #{all}"
+  end
+
+  def wheres_parse([]) do
+    ""
+  end
+
+  # where parsing for :all queries
+  def wheres_parse([], params) do
+    ""
+  end
+
+  def wheres_parse(wheres, params) do
+    all = wheres
+      |> Enum.map(fn w -> where_parse(w, params) end)
+      |> Enum.join(" AND ")
+    "WHERE #{all}"
+  end
+
+  def where_parse(%Ecto.Query.QueryExpr{expr: {:==, [], [{{:., [], [{:&, [], [0]}, :id]}, [ecto_type: :binary_id], []}, {:^, [], [params_index]}]}}, params) do
+    "n.uuid = '#{params}'"
+  end
+
+  def where_parse(%Ecto.Query.QueryExpr{expr: {:==, [], [{{:., [], [{:&, [], [0]}, column_name]}, [ecto_type: :binary_id], []}, {:^, [], [params_index]}]}}, params) do
+    "n.#{column_name} = '#{params}'"
+  end
 
   def where_parse(%Ecto.Query.QueryExpr{expr: {:or,_,criteria} }) do
     criteria |> Enum.map(fn c -> criterium_string(c) end) |> Enum.join(" OR ")
   end
 
-  def where_parse(wheres) do
-    all = wheres |> Enum.map(fn w -> where_parse(w) end) |> Enum.join(" AND ")
-    "WHERE #{all}"
-  end
-
-  def where_parse([]) do
-    IO.puts "********************************************  WHERES nil ***********************************************"
-    ""
-  end
   # {:==, [], [{{:., [], [{:&, [], [0]}, :title]}, [ecto_type: :string], []}, "2"]}
   def criterium_string({:==, [], [{{:., [], [{:&, [], [0]}, column_name]}, [ecto_type: :string], []}, match]}) do
     "n.#{column_name} = '#{match}'"
@@ -165,7 +185,6 @@ defmodule Ecto.Neo4j do
   end
 
   def update_strings(%Ecto.Query.QueryExpr{expr: [set: fields]}, params) do
-    # IEx.pry
     fields |> Enum.map(fn({k,v}) -> update_string(List.to_tuple(params), k, v) end)
   end
 
@@ -173,6 +192,7 @@ defmodule Ecto.Neo4j do
     item_index = List.last(elem(index,2))
     "n.#{field_name} = '#{elem(params, item_index)}'"
   end
+
 
   def columns(query) do
     query.select.fields |> Enum.map(fn expr -> extract_column(expr) end)
@@ -188,6 +208,8 @@ defmodule Ecto.Neo4j do
     |> Ecto.DateTime.cast
   end
 
+
+  def load(_, nil), do: {:ok, nil}
   def load(:boolean, "true"), do: {:ok, true}
   def load(:boolean, "false"), do: {:ok, false}
 
@@ -203,14 +225,29 @@ defmodule Ecto.Neo4j do
   # this is definitely wrong, will need work to figure our supported types
   def dump(_something, term), do: {:ok, term}
 
-  def insert(_repo, schema_meta, fields, _autogenerate_id, _returning, _options) do
-    {_, table} = schema_meta.source
-    cypher = "CREATE (n:#{table} {#{fields_parser(fields)}}) RETURN n"
+  def insert(_repo, schema_meta = %{source: {_, table}}, fields, _autogenerate_id, _returning, _options) do
+    fields_auto_id = [{id_col(schema_meta), fields[:uuid]}] ++ fields
+    cypher = "CREATE (n:#{table} {#{fields_parser(fields_auto_id)}}) RETURN #{return_fields(fields_auto_id)}"
     {:ok, [result] } = Neo4j.query(Neo4j.conn, cypher)
-    new_result = result["n"]
+    {:ok, remap_insert_return(result)}
+  end
+
+  def remap_insert_return(result) do
+    result
       |> Enum.map(fn {key,value} -> {String.to_atom(key), value}  end)
       |> Enum.into(%{})
-    {:ok, new_result}
+  end
+
+  def id_col(meta) do
+    {id_column, _type} = meta.model.__schema__(:autogenerate_id)
+    id_column
+  end
+
+  def return_fields fields do
+    fields
+    |> Enum.filter(fn {_k,v} -> v && v != "" end)
+    |> Enum.map(fn {k, _v} -> "n.#{k} as #{k}" end)
+    |> Enum.join(", ")
   end
 
   def return_fields_parser fields do
