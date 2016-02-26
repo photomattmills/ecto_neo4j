@@ -50,9 +50,7 @@ defmodule Ecto.Neo4j do
   def execute(repo, meta, query, params, preprocess, options) do
     cypher = build_cypher(query, params)
     {:ok, return} = Neo4j.query(Neo4j.conn, cypher)
-    IO.puts "************************* result from execute ***************************"
-    IO.inspect {return_count(return), sorted_return(return, query)}
-    {return_count(return), [sorted_return(return, query)]}
+    {return_count(return), sorted_return(return, query)}
   end
 
   def return_count([%{"count" => n}]), do: n
@@ -61,21 +59,25 @@ defmodule Ecto.Neo4j do
     Enum.count(return)
   end
 
-  def sorted_return(_col, {_, %Ecto.Query{select: nil}}), do: nil
+  def sorted_return(_col, {_, %Ecto.Query{select: nil}}), do: [nil]
+
+  def sorted_return([], _), do: []
 
   def sorted_return(return, query) do
-    return |> Enum.map(fn column -> sort_column(column, query) end)
+    r = return |> Enum.map(fn column -> sort_column(column, query) end)
+    [r]
   end
 
   def sort_column(%{"n" => node}, query) do
     sort_column(node, query)
   end
 
-  def sort_column(node, query) do
+  def sort_column(node, query ={ _type, %Ecto.Query{sources: {{node_type_name, source}}}}) do
     cols = result_columns(query)
     if hd(cols) do
-      coercer = fn({name, type}) -> coerce(type, node[Atom.to_string(name)]) end
-      cols |> Enum.map(coercer)
+      coercer = fn({name, type}) -> {name, coerce(type, node[Atom.to_string(name)])} end
+      coerced = cols |> Enum.map(coercer)
+      struct(source, coerced) |> Map.merge(%{__meta__: %Ecto.Schema.Metadata{state: :loaded, source: {nil, node_type_name}}})
     else
       [nil]
     end
@@ -112,7 +114,6 @@ defmodule Ecto.Neo4j do
 
   def build_cypher({:all, query_obj}, params) do
     str_wheres = wheres_parse(query_obj.wheres, params)
-    IO.puts "MATCH (n:#{from_string(query_obj.from)}) #{str_wheres} RETURN n"
     "MATCH (n:#{from_string(query_obj.from)}) #{str_wheres} RETURN n"
   end
 
@@ -123,7 +124,15 @@ defmodule Ecto.Neo4j do
   end
 
   def build_cypher({:delete_all, query_obj}, params) do
-    "MATCH n:#{from_string(query_obj.from)} DETACH DELETE n"
+    "MATCH (n:#{from_string(query_obj.from)}) DELETE n"
+  end
+
+  def delete(repo, %{source: {_, node_type}}, filters, autogenerate_id, options) do
+    filter = filters
+      |> Enum.map(fn {k,v} -> "#{k}: '#{v}'" end)
+      |> Enum.join(", ")
+    cypher = "MATCH (n:#{node_type} {#{filter}}) DELETE n"
+    Neo4j.query(Neo4j.conn, cypher)
   end
 
   def from_string({x, _}) do
@@ -164,9 +173,15 @@ defmodule Ecto.Neo4j do
   def where_parse(%Ecto.Query.QueryExpr{expr: {:==, [], [{{:., [], [{:&, [], [0]}, :id]}, [ecto_type: :binary_id], []}, {:^, [], [params_index]}]}}, params) do
     "n.uuid = '#{params}'"
   end
-
-  def where_parse(%Ecto.Query.QueryExpr{expr: {:==, [], [{{:., [], [{:&, [], [0]}, column_name]}, [ecto_type: :binary_id], []}, {:^, [], [params_index]}]}}, params) do
+  # %Ecto.Query.QueryExpr{expr: {:in, [], [{{:., [], [{:&, [], [0]}, :post_id]}, [ecto_type: :binary_id], []}, {:^, [], [0, 1]}]}
+  def where_parse(%Ecto.Query.QueryExpr{expr: {:in, [], [{{:., [], [{:&, [], [0]}, column_name]}, [ecto_type: :binary_id], []}, {:^, [], [params_index]}]}}, params) do
     "n.#{column_name} = '#{params}'"
+  end
+
+  def where_parse(%Ecto.Query.QueryExpr{expr: {:in, [], [{{_, _, [_, column_name]}, [ecto_type: :binary_id], []}, {:^, [], _}]}}, params) do
+    # n.property IN [{value1}, {value2}]
+    formatted_params = params |> Enum.map(fn term -> "'#{term}'" end) |> Enum.join(",")
+    "n.#{column_name} IN [#{formatted_params}]"
   end
 
   def where_parse(%Ecto.Query.QueryExpr{expr: {:or,_,criteria} }) do
