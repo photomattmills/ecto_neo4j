@@ -49,6 +49,8 @@ defmodule Ecto.Neo4j do
 
   def execute(repo, meta, query, params, preprocess, options) do
     cypher = build_cypher(query, params)
+    IO.puts "***********************************************************"
+    IO.inspect cypher
     {:ok, return} = Neo4j.query(Neo4j.conn, cypher)
     {return_count(return), sorted_return(return, query)}
   end
@@ -168,6 +170,12 @@ defmodule Ecto.Neo4j do
       |> Enum.map(fn w -> where_parse(w, params) end)
       |> Enum.join(" AND ")
     "WHERE #{all}"
+  end
+
+  # Ecto.Neo4j.wh(%Ecto.Query.QueryExpr{expr: {:==, [], [ { {:., [], [{:&, [], [0]}, :uuids]},       [ecto_type: {:array, Ecto.UUID}], []}, {:^, [], [0]}]}, params: nil}, [[]])
+  def where_parse(%Ecto.Query.QueryExpr{expr: {:==, [], [{{:., [], [{:&, [], [0]}, column_name]}, [ecto_type: {:array, Ecto.UUID}], []}, {:^, [], [0]}]}}, [params]) do
+    formatted_params = params |> Enum.map(fn term -> "'#{term}'" end) |> Enum.join(",")
+    "n.#{column_name} IN [#{formatted_params}]"
   end
 
   def where_parse(%Ecto.Query.QueryExpr{expr: {:==, [], [{{:., [], [{:&, [], [0]}, :id]}, [ecto_type: :binary_id], []}, {:^, [], [params_index]}]}}, params) do
