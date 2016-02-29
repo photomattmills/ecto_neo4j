@@ -76,13 +76,11 @@ defmodule Ecto.Neo4j do
 
   def sort_column(node, query ={ _type, %Ecto.Query{sources: {{node_type_name, source}}}}) do
     cols = result_columns(query)
-    if hd(cols) do
-      coercer = fn({name, type}) -> {name, coerce(type, node[Atom.to_string(name)])} end
-      coerced = cols |> Enum.map(coercer)
-      struct(source, coerced) |> Map.merge(%{__meta__: %Ecto.Schema.Metadata{state: :loaded, source: {nil, node_type_name}}})
-    else
-      [nil]
-    end
+    IO.puts "************************************** cols"
+    IO.inspect cols
+    coercer = fn({name, type}) -> {name, coerce(type, node[Atom.to_string(name)])} end
+    coerced = cols |> Enum.map(coercer)
+    struct(source, coerced) |> Map.merge(%{__meta__: %Ecto.Schema.Metadata{state: :loaded, source: {nil, node_type_name}}})
   end
 
   def coerce(type, value) do
@@ -105,6 +103,10 @@ defmodule Ecto.Neo4j do
 
   def result_columns({_type, query}) do
     query.select.fields |> Enum.map(fn expr -> extract_column_with_type(expr) end)
+  end
+
+  def extract_column_with_type([{{:., [], [{:&, [], [0]}, column_name]}, [ecto_type: type], []}]) do
+    {column_name, type}
   end
 
   def extract_column_with_type(expr) when expr != nil do
@@ -239,7 +241,14 @@ defmodule Ecto.Neo4j do
   def load(:integer, value), do: {:ok, String.to_integer(value)}
   def load(:id, value), do: {:ok, String.to_integer(value)}
   def load(:float, value), do: {:ok, String.to_float(value)}
-  def load(_type, value) do
+  def load({:array, Ecto.UUID}, value) do
+    {:ok, [value]}
+  end
+
+  def load(type, value) do
+    IO.puts "**************************** Default load, may be inaccurate ******************************  "
+    IO.inspect type
+    IO.inspect value
     {:ok, value}
   end
 
